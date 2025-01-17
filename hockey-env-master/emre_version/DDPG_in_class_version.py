@@ -7,8 +7,8 @@ from gymnasium import spaces
 import optparse
 import pickle
 
-from my_version.feedforward import Feedforward
-from my_version.memory import Memory
+from emre_version.feedforward import Feedforward
+from emre_version.memory import Memory
 
 
 
