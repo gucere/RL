@@ -104153,8 +104153,68 @@
       "opponent_type": "weak",
       "reward": -11.857264962843587,
       "timestamp": "2025-02-23T11:42:02.013150"
+    },
+    {
+      "episode": 17360,
+      "opponent_type": "strong",
+      "reward": -16.051502354942414,
+      "timestamp": "2025-02-23T11:46:06.724200"
+    },
+    {
+      "episode": 17361,
+      "opponent_type": "weak",
+      "reward": -29.022017728832324,
+      "timestamp": "2025-02-23T11:46:15.087823"
+    },
+    {
+      "episode": 17362,
+      "opponent_type": "strong",
+      "reward": 8.845189773606126,
+      "timestamp": "2025-02-23T11:46:15.392908"
+    },
+    {
+      "episode": 17363,
+      "opponent_type": "weak",
+      "reward": -12.516978163996873,
+      "timestamp": "2025-02-23T11:46:19.604442"
+    },
+    {
+      "episode": 17364,
+      "opponent_type": "strong",
+      "reward": 7.522460092928586,
+      "timestamp": "2025-02-23T11:46:20.333780"
+    },
+    {
+      "episode": 17365,
+      "opponent_type": "weak",
+      "reward": -14.949110155246988,
+      "timestamp": "2025-02-23T11:46:23.923475"
+    },
+    {
+      "episode": 17366,
+      "opponent_type": "strong",
+      "reward": -14.60690591039145,
+      "timestamp": "2025-02-23T11:46:28.852743"
+    },
+    {
+      "episode": 17367,
+      "opponent_type": "weak",
+      "reward": -11.233217217853191,
+      "timestamp": "2025-02-23T11:46:29.092788"
+    },
+    {
+      "episode": 17368,
+      "opponent_type": "strong",
+      "reward": -16.47967885135673,
+      "timestamp": "2025-02-23T11:46:30.176509"
+    },
+    {
+      "episode": 17369,
+      "opponent_type": "weak",
+      "reward": -14.63856731810279,
+      "timestamp": "2025-02-23T11:46:30.837767"
     }
   ],
   "best_reward_ever": 0.12547213965499018,
-  "total_training_episodes": 17359
+  "total_training_episodes": 17369
 }

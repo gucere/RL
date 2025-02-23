@@ -410,7 +410,7 @@ if __name__ == '__main__':
         "whether_to_run_best_model": False,
         "whether_to_render": False,
         # training settings
-        "total_episodes": 10,
+        "total_episodes": 100000,
         "batch_size": 32,
         "episode_length": 251,
         "exploration_noise": 0.3,
