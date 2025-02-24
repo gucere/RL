@@ -10,8 +10,9 @@ from datetime import datetime
 class Test:
     def __init__(self, opponents, discount, tau, policy_noise, noise_clip, policy_freq,
                  hidden_dim_1=2048, hidden_dim_2=2048, learning_rate=1e-3, weight_decay=1e-4, grad_clip=1.0,
-                 total_episodes=100, number_of_games=10, batch_size=256, episode_length=200, exploration_noise=0.1,
-                 min_exploration_noise=0.0001, exploration_decay=0.999999, whether_to_render=False, memory_limit=1000000, train_against_weak_n_number_of_times=1000):
+                 total_episodes=100, number_of_games=10, batch_size=256, episode_length=200, leaky_relu_grad = 0.01,
+                 exploration_noise=0.1, min_exploration_noise=0.0001, exploration_decay=0.999999, whether_to_render=False,
+                 memory_limit=1000000, train_against_weak_n_number_of_times=1000):
 
         # Training only in NORMAL mode since testing for full game seemed more optimal
         self.env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
@@ -34,7 +35,8 @@ class Test:
             actor_learning_rate=learning_rate,
             critic_learning_rate=learning_rate,
             weight_decay=weight_decay,
-            grad_clip=grad_clip
+            grad_clip=grad_clip,
+            leaky_relu_grad=leaky_relu_grad
         )
 
         # Create models directory
@@ -76,7 +78,6 @@ class Test:
             except Exception as e:
                 print(f"Error loading training history: {e}")
         
-        # Initialize new history
         return {
             "episodes": [],
             "best_reward_ever": -float('inf'),
@@ -209,7 +210,7 @@ class Test:
             session_best_reward = self.evaluate_agent(number_of_games=self.number_of_games, whether_to_render=False)
             
             # Update session best reward if we loaded a better model
-            # Use max for more stability, use the current version for more testing
+            # Message to reader: use max for more stability, use the current version for more testing
             self.best_reward_ever = session_best_reward #max(self.best_reward_ever, session_best_reward)
             print(f"All-time best reward: {self.best_reward_ever}")
         # Get current training progress
@@ -264,15 +265,14 @@ class Test:
                 "timestamp": datetime.now().isoformat()
             }
             self.training_history["episodes"].append(episode_data)
-            self.training_history["total_training_episodes"] = global_episode
+            self.training_history["total_training_episodes"] = global_episode       
             
-            
+            # Evaluations take time and computational power, intend to evaluate only promising ones
             should_evaluate = (
                 episode % 100 == 0 or  # Regular checkpoint (just in case or in case if it is the first ever)
-                episode_reward > self.best_reward_ever or # If the episode looks promising to evaluate
-                True
+                episode_reward + 0.5 > self.best_reward_ever # If the episode looks promising to evaluate
             )
-            # Evaluations take time and computational power, intend to evaluate only promising ones
+
             if should_evaluate:
                 print("testing for episode with singular test reward: ", episode_reward)
                 avg_reward = self.evaluate_agent(number_of_games=self.number_of_games, whether_to_render=False)
@@ -335,7 +335,8 @@ def main(user_variables):
         exploration_decay=user_variables.get("exploration_decay"),
         whether_to_render=user_variables.get("whether_to_render"),
         memory_limit=user_variables.get("memory_limit"),
-        train_against_weak_n_number_of_times=user_variables.get("train_against_weak_n_number_of_times")
+        train_against_weak_n_number_of_times=user_variables.get("train_against_weak_n_number_of_times"),
+        leaky_relu_grad=user_variables.get("leaky_relu_grad")
     )
 
     if user_variables.get("whether_to_train"):
@@ -355,27 +356,28 @@ if __name__ == '__main__':
         "whether_to_run_best_model": False, #Boolean to test the current best model
         "whether_to_render": False, # Boolean to render test
         # training settings
-        "total_episodes": 50000, # Number of episodes to run
+        "total_episodes": 80000, # Number of episodes to run
         "batch_size": 32,
         "episode_length": 251, # Depth of an episode (Hockey env has max depth 251)
-        "exploration_noise": 0.01,
+        "exploration_noise": 0.2,
         "min_exploration_noise": 0.0001,
         "exploration_decay": 0.999999,
         "train_against_weak_n_number_of_times": 1000,
         # running settings
-        "number_of_games": 100, # Number of games to test an episode's quality or to render - a high number is recommended since it effected my training a lot
-        "opponents": [h_env.BasicOpponent(weak=False), h_env.BasicOpponent(weak=False)], # list of opponents
+        "number_of_games": 200, # Number of games to test an episode's quality or to render - a high number is recommended since it effected my training a lot
+        "opponents": [h_env.BasicOpponent(weak=True), h_env.BasicOpponent(weak=False)], # list of opponents
         # TD3 settings
-        "discount": 0.999999,
+        "discount": 0.99,
         "tau": 0.005,
         "policy_noise": 0.2,
         "noise_clip": 0.5,
         "policy_freq": 2,
         "hidden_dim_1": 256,
         "hidden_dim_2": 256,
-        "learning_rate": 1e-6,
+        "learning_rate": 1e-5,
         "weight_decay": 1e-5,
-        "grad_clip": 1.0, 
+        "grad_clip": 1.0,
+        "leaky_relu_grad": 0.01, 
         "memory_limit": 100000 # memory limit to allocate for the task
     }
     main(user_variables)

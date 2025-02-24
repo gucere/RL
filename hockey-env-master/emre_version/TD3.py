@@ -4,7 +4,7 @@ import torch.optim as optim
 import torch.nn.functional
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2):
+    def __init__(self, state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2, leaky_relu_grad):
         super(Actor, self).__init__()
         self.max_action = max_action
 
@@ -14,7 +14,7 @@ class Actor(nn.Module):
         self.ln2 = nn.LayerNorm(hidden_dim_2)
         self.fc3 = nn.Linear(hidden_dim_2, action_dim)
 
-        self.activation = nn.LeakyReLU(0.01)  # Leaky ReLU with negative slope 0.01 - to prevent dead gradient
+        self.activation = nn.LeakyReLU(leaky_relu_grad)  # to prevent dead gradient
 
         self.apply(self.init_weights)
 
@@ -69,11 +69,13 @@ class Critic(nn.Module):
 
 
 class TD3:
-    def __init__(self, state_dim, action_dim, max_action, discount, tau, policy_noise, noise_clip, policy_freq,
-                 hidden_dim_1=2048, hidden_dim_2=2048, actor_learning_rate=1e-3, critic_learning_rate=1e-3, weight_decay=1e-4, grad_clip=1.0):
+    def __init__(self, state_dim, action_dim, max_action, discount, tau, policy_noise,
+                  noise_clip, policy_freq, hidden_dim_1=2048, hidden_dim_2=2048,
+                  actor_learning_rate=1e-3, critic_learning_rate=1e-3, weight_decay=1e-4,
+                  grad_clip=1.0, leaky_relu_grad=0.01):
 
-        self.actor = Actor(state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2).to("cuda")
-        self.actor_target = Actor(state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2).to("cuda")
+        self.actor = Actor(state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2, leaky_relu_grad).to("cuda")
+        self.actor_target = Actor(state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2, leaky_relu_grad).to("cuda")
         self.actor_target.load_state_dict(self.actor.state_dict())
 
         self.critic = Critic(state_dim, action_dim, hidden_dim_1, hidden_dim_2).to("cuda")
