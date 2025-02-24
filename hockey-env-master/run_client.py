@@ -1,14 +1,10 @@
 from __future__ import annotations
-
 import argparse
 import uuid
-
 import hockey.hockey_env as h_env
 import numpy as np
-from emre_version.TD3_alternative_new import TD3
+from emre_version.TD3 import TD3
 import torch
-
-
 from comprl.client import Agent, launch_client
 
 

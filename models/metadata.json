@@ -1,7 +1,7 @@
 {
   "version": "latest",
-  "reward": 0.12547213965499018,
-  "episode": 263,
+  "reward": -7.192310247023108,
+  "episode": 17,
   "opponent_type": "evaluation",
-  "timestamp": "2025-02-23T01:57:22.618149"
+  "timestamp": "2025-02-24T15:41:41.418039"
 }

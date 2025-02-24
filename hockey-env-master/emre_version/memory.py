@@ -1,27 +1,52 @@
 import numpy as np
+import torch
 
 # class to store transitions
 class Memory():
     def __init__(self, max_size=100000):
-        self.transitions = np.asarray([])
+        self.max_size=max_size
+        self.transitions = np.empty(max_size, dtype=object)  # Preallocate memory
         self.size = 0
         self.current_idx = 0
-        self.max_size=max_size
 
-    def add_transition(self, transitions_new):
-        if self.size == 0:
-            blank_buffer = [np.asarray(transitions_new, dtype=object)] * self.max_size
-            self.transitions = np.asarray(blank_buffer)
+    # def add_transition(self, transitions_new):
+    #     self.transitions[self.current_idx] = transitions_new  # Direct assignment
+    #     self.size = min(self.size + 1, self.max_size)
+    #     self.current_idx = (self.current_idx + 1) % self.max_size  # Circular buffer
 
-        self.transitions[self.current_idx,:] = np.asarray(transitions_new, dtype=object)
+    # def add_transition(self, transition):
+    #     # Convert NumPy arrays & scalars to PyTorch tensors before storing
+    #     transition = tuple(
+    #         torch.tensor(t, dtype=torch.float32, device="cuda") if isinstance(t, (np.ndarray, list, float, int)) else t
+    #         for t in transition
+    #     )
+    #     self.transitions[self.current_idx] = transition
+    #     self.size = min(self.size + 1, self.max_size)
+    #     self.current_idx = (self.current_idx + 1) % self.max_size  # Circular buffer
+    def add_transition(self, transition):
+        # More explicit and slightly more efficient tensor conversion
+        converted_transition = []
+        for t in transition:
+            if isinstance(t, (np.ndarray, list, float, int)):
+                converted_transition.append(
+                    torch.tensor(t, dtype=torch.float32, device="cuda")
+                )
+            else:
+                converted_transition.append(t)
+        
+        self.transitions[self.current_idx] = tuple(converted_transition)
         self.size = min(self.size + 1, self.max_size)
         self.current_idx = (self.current_idx + 1) % self.max_size
 
+    # def sample(self, batch=1):
+    #     batch = min(batch, self.size)
+    #     indices = np.random.randint(0, self.size, size=batch)
+    #     return self.transitions[indices] 
+    
     def sample(self, batch=1):
-        if batch > self.size:
-            batch = self.size
-        self.inds=np.random.choice(range(self.size), size=batch, replace=False)
-        return self.transitions[self.inds,:]
+        batch = min(batch, self.size)
+        indices = np.random.choice(self.size, batch, replace=False)
+        return self.transitions[indices]
 
     def get_all_transitions(self):
-        return self.transitions[0:self.size]
+        return self.transitions[:self.size]
