@@ -86,22 +86,20 @@ class TD3HockeyAgent(Agent):
             grad_clip=1.0
         )
 
-        # Load trained weights
         self.agent.actor.load_state_dict(torch.load(model_path_actor, map_location="cpu"))
         self.agent.critic.load_state_dict(torch.load(model_path_critic, map_location="cpu"))
-        self.agent.actor.eval()  # Set to evaluation mode
+        self.agent.actor.eval()
         self.agent.critic.eval()
 
         print("TD3 Agent Loaded Successfully!")
 
     def get_step(self, observation: list[float]) -> list[float]:
-        """Selects an action using the trained TD3 model."""
-        action = self.agent.select_action(observation).squeeze().tolist()  # Get action
+        action = self.agent.select_action(observation).squeeze().tolist()
         action1 = action[:4]
-        return action1  # Return action in list format
+        return action1
 
     def on_start_game(self, game_id) -> None:
-        #game_id = uuid.UUID(int=int.from_bytes(game_id))
+        #game_id = uuid.UUID(int=int.from_bytes(game_id)) - this gave error even though it was in the given code
         game_id = uuid.UUID(int=int.from_bytes(game_id, byteorder="little"))
         print(f"Game started (id: {game_id})")
 

@@ -14,7 +14,7 @@ class Actor(nn.Module):
         self.ln2 = nn.LayerNorm(hidden_dim_2)
         self.fc3 = nn.Linear(hidden_dim_2, action_dim)
 
-        self.activation = nn.LeakyReLU(leaky_relu_grad)  # to prevent dead gradient
+        self.activation = nn.LeakyReLU(leaky_relu_grad)
 
         self.apply(self.init_weights)
 
@@ -70,8 +70,8 @@ class Critic(nn.Module):
 
 
 class TD3:
-    def __init__(self, state_dim, action_dim, max_action, discount, tau, policy_noise,
-                  noise_clip, policy_freq, hidden_dim_1=256, hidden_dim_2=256,
+    def __init__(self, state_dim, action_dim, max_action, discount=0.99, tau=0.05, policy_noise=0.2,
+                  noise_clip=0.5, policy_freq=2, hidden_dim_1=256, hidden_dim_2=256,
                   actor_learning_rate=1e-3, critic_learning_rate=1e-3, weight_decay=1e-4,
                   grad_clip=1.0, leaky_relu_grad=0.01):
 
@@ -97,20 +97,14 @@ class TD3:
 
 
     def select_action(self, state, noise_std=0.1):
-        """ Selects an action with optional noise for exploration """
         with torch.no_grad():
             state_tensor = torch.as_tensor(state, dtype=torch.float32, device="cuda").unsqueeze(0)
-            
-            # Get action (already on GPU)
             action = self.actor(state_tensor)
             
             if noise_std > 0:
-                # Generate noise directly on GPU with same properties as action
                 noise = torch.randn_like(action, device="cuda") * noise_std
-                # In-place operations for better performance
                 action.add_(noise).clamp_(-1, 1)
             
-            # Single transfer back to CPU at the end
             return action.cpu().numpy().flatten()
 
     def train(self, states, actions, next_states, rewards, dones, batch_size):

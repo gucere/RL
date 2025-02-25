@@ -8,7 +8,8 @@ import hockey.hockey_env as h_env
 from datetime import datetime
 
 class Test:
-    def __init__(self, opponents, discount, tau, policy_noise, noise_clip, policy_freq,
+    def __init__(self, opponents=[h_env.BasicOpponent(weak=True), h_env.BasicOpponent(weak=False)],
+                 discount=0.99, tau=0.05, policy_noise=0.2, noise_clip=0.5, policy_freq=2,
                  hidden_dim_1=2048, hidden_dim_2=2048, learning_rate=1e-3, weight_decay=1e-4, grad_clip=1.0,
                  total_episodes=100, number_of_games=10, batch_size=256, episode_length=200, leaky_relu_grad = 0.01,
                  exploration_noise=0.1, min_exploration_noise=0.0001, exploration_decay=0.999999, whether_to_render=False,
@@ -68,15 +69,11 @@ class Test:
         self.best_reward_ever = self.training_history.get("best_reward_ever", -float('inf'))
 
     def load_training_history(self):
-        """Load training history from file"""
         history_path = "models/training_history.json"
         if os.path.exists(history_path):
-            try:
-                with open(history_path, 'r') as f:
-                    history = json.load(f)
-                    return history
-            except Exception as e:
-                print(f"Error loading training history: {e}")
+            with open(history_path, 'r') as f:
+                history = json.load(f)
+                return history
         
         return {
             "episodes": [],
@@ -85,37 +82,29 @@ class Test:
         }
 
     def save_training_history(self):
-        """Save training history to file"""
         with open("models/training_history.json", 'w') as f:
             json.dump(self.training_history, f, indent=2)
 
     def save_memory(self):
-        """Save memory buffer to file"""
-        try:
-            transitions = self.memory.get_all_transitions()
-            if len(transitions) > 0:
-                torch.save(transitions, "models/memory_buffer.pt")
-        except Exception as e:
-            print(f"Error saving memory: {e}")
+        transitions = self.memory.get_all_transitions()
+        if len(transitions) > 0:
+            torch.save(transitions, "models/memory_buffer.pt")
 
     def load_memory(self):
         memory_path = "models/memory_buffer.pt"
         if os.path.exists(memory_path):
-            try:
-                transitions = torch.load(memory_path, map_location="cuda", weights_only=False)
-                # Enforce new limit - it may be needed if user(s) decide to increase or decrease memory limit
-                memory = Memory(max_size=self.memory_limit)
+            transitions = torch.load(memory_path, map_location="cuda", weights_only=False)
+            # Enforce new limit - it may be needed if user(s) decide to increase or decrease memory limit
+            memory = Memory(max_size=self.memory_limit)
                 
-                if len(transitions) > memory.max_size:
-                    transitions = transitions[-memory.max_size:]
+            if len(transitions) > memory.max_size:
+                transitions = transitions[-memory.max_size:]
 
-                for transition in transitions:
-                    memory.add_transition(transition)
+            for transition in transitions:
+                memory.add_transition(transition)
 
-                print(f"Loaded memory buffer with {memory.size} transitions (Limited to {memory.max_size})")
-                return memory
-            except Exception as e:
-                print(f"Error loading memory buffer: {e}")
+            print("Loaded memory buffer with " + str(memory.size) + " transitions (Limited to " + str(memory.max_size) + ")")
+            return memory
         return Memory(max_size=self.memory_limit)
 
 
@@ -134,7 +123,7 @@ class Test:
                     break
             # commented out this since it not must have statement. Keeping this for potential future users
             # if play_best_agent:
-            #     print(f"Episode Reward with Best Agent: {episode_reward}")
+            #     print("Episode Reward with Best Agent: " + str(episode_reward))
             return episode_reward
         
     def save(self, actor_path, critic_path):
@@ -150,10 +139,10 @@ class Test:
             self.agent.critic.load_state_dict(torch.load(critic_path, weights_only=True))
             self.agent.actor.to("cuda")
             self.agent.critic.to("cuda")
-            print(f"Loaded agent from {actor_path} and {critic_path}")
+            print("Loaded agent from " + str(actor_path) + " and " + str(critic_path))
             return True
         else:
-            print(f"Could not find model at {actor_path}")
+            print("Failed to find agent!")
             return False
 
 
@@ -168,17 +157,18 @@ class Test:
         combined_action = torch.cat([action1, action2]).cpu().numpy()
         return action1.cpu().numpy(), action2.cpu().numpy(), combined_action
 
-    def evaluate_agent(self, number_of_games=10, whether_to_render=False):
+    def evaluate(self, number_of_games=10, whether_to_render=False):
         torch.cuda.empty_cache()
         results = []
         with torch.no_grad():
             with torch.cuda.device("cuda"):
+                print("\nAgent will play", number_of_games, "games against both Basic Opponents.")
                 for idx, player2 in enumerate(self.opponents):
                     opponent_type = "weak" if idx == 0 else "strong"
                     total_reward = 0
                     successes = 0
                     
-                    #print(f"\nTesting against {opponent_type} opponent:") # optional print statement
+                    print("\nTesting against " + str(opponent_type) + " opponent:")
                     for eval_ep in range(number_of_games):
                         reward = self.render_episode(player2, play_best_agent=True, render_current=whether_to_render)
                         total_reward += reward
@@ -193,12 +183,30 @@ class Test:
                         'avg_reward': avg_reward,
                         'success_rate': success_rate
                     })
-        overall_avg_reward = sum(r['avg_reward'] for r in results) / len(results)
+                    print("Against " + str(opponent_type) + " opponent:")
+                    print("Agent success (number of games with positive reward) count: ", str(successes))
+                    print("Average reward: " + str(round(avg_reward, 2)))
+                    print("Success rate (Percentage of games with positive reward): " + str(round(success_rate, 1)) + "%")
+
+        total_reward = 0
+        total_success_rate = 0
+        count = 0
+
+        for result in results:
+            total_reward += result['avg_reward']
+            total_success_rate += result['success_rate']
+            count += 1
+
+        overall_avg_reward = total_reward / count
+        overall_success_rate = total_success_rate / count
+        print("\nOverall Performance:")
+        print("Average reward across all opponents: " + str(overall_avg_reward))
+        print("Average success rate (Percentage of games with positive reward): " + str(overall_success_rate) + "%")
         return overall_avg_reward
     
     def train(self):
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()  # Clear GPU memory at start
+            torch.cuda.empty_cache()
         session_best_reward = -float('inf')
         
         # Load the best agent if it exists
@@ -207,17 +215,17 @@ class Test:
 
             # Evaluate the best model inputed number_of_games times
             print("\nEvaluating best saved agent before training...")
-            session_best_reward = self.evaluate_agent(number_of_games=self.number_of_games, whether_to_render=False)
+            session_best_reward = self.evaluate(number_of_games=self.number_of_games, whether_to_render=False)
             
             # Update session best reward if we loaded a better model
             # Message to reader: use max for more stability, use the current version for more testing
             self.best_reward_ever = session_best_reward #max(self.best_reward_ever, session_best_reward)
-            print(f"All-time best reward: {self.best_reward_ever}")
+            print("All-time best reward: " + str(self.best_reward_ever))
         # Get current training progress
         global_episode = self.training_history.get("total_training_episodes", 0)
 
         # Main training loop
-        print("\nStarting mixed opponent training...")
+        print("Starting mixed opponent training...")
         for episode in range(self.total_episodes):
             # Alternate between opponents for better training
             if global_episode < self.train_against_weak_n_number_of_times:  # First train_against_weak_n_number_of_times episodes
@@ -232,7 +240,7 @@ class Test:
             episode_reward = 0
 
             for step in range(self.episode_length):
-                self.exploration_noise = max(self.min_exploration_noise, self.exploration_noise * self.exploration_decay) # exploration noise decay
+                self.exploration_noise = max(self.min_exploration_noise, self.exploration_noise * self.exploration_decay)
                 action1, action2, combined_action = self.get_action(player2)
                 next_state, reward, done, trunc, _info = self.env.step(combined_action)
                 self.memory.add_transition([self.obs, combined_action, next_state, reward, done])
@@ -268,19 +276,14 @@ class Test:
             self.training_history["total_training_episodes"] = global_episode       
             
             # Evaluations take time and computational power, intend to evaluate only promising ones
-            should_evaluate = (
-                episode % 100 == 0 or  # Regular checkpoint (just in case or in case if it is the first ever)
-                episode_reward + 0.5 > self.best_reward_ever # If the episode looks promising to evaluate
-            )
-
-            if should_evaluate:
+            if episode % 100 == 0 or episode_reward + 0.5 > self.best_reward_ever:
                 print("testing for episode with singular test reward: ", episode_reward)
-                avg_reward = self.evaluate_agent(number_of_games=self.number_of_games, whether_to_render=False)
+                avg_reward = self.evaluate(number_of_games=self.number_of_games, whether_to_render=False)
                 print("new = ", avg_reward, " vs best so far = ", self.best_reward_ever)
                 if avg_reward > self.best_reward_ever:
                     self.best_reward_ever = avg_reward
                     self.training_history["best_reward_ever"] = self.best_reward_ever
-                    print(f"New all-time best reward: {self.best_reward_ever}. Saving model...")
+                    print("New all-time best reward: " + str(self.best_reward_ever) + ". Saving model...")
                         
                     # Save best model
                     self.save("models/best_actor.pth", "models/best_critic.pth")
@@ -307,49 +310,51 @@ class Test:
         self.save_training_history()
         self.save_memory()
         
-        print(f"Training complete. Final all-time best reward: {self.best_reward_ever}")
+        print("Training complete. Final all-time best reward: " + str(self.best_reward_ever))
 
     def run_best_model(self, number_of_games=10, whether_to_render=False):
         self.load_agent("models/best_actor.pth", "models/best_critic.pth")
-        self.evaluate_agent(number_of_games=number_of_games, whether_to_render=whether_to_render)
+        self.evaluate(number_of_games=number_of_games, whether_to_render=whether_to_render)
 
 def main(user_variables):
     test_object = Test(
-        opponents=user_variables.get("opponents"),
-        discount=user_variables.get("discount"),
-        tau=user_variables.get("tau"),
-        policy_noise=user_variables.get("policy_noise"),
-        noise_clip=user_variables.get("noise_clip"),
-        policy_freq=user_variables.get("policy_freq"),
-        hidden_dim_1=user_variables.get("hidden_dim_1"),
-        hidden_dim_2=user_variables.get("hidden_dim_2"),
-        learning_rate=user_variables.get("learning_rate"),
-        weight_decay=user_variables.get("weight_decay"),
-        grad_clip=user_variables.get("grad_clip"),
-        total_episodes=user_variables.get("total_episodes"),
-        number_of_games=user_variables.get("number_of_games"),
-        batch_size=user_variables.get("batch_size"),
-        episode_length=user_variables.get("episode_length"),
-        exploration_noise=user_variables.get("exploration_noise"),
-        min_exploration_noise=user_variables.get("min_exploration_noise"),
-        exploration_decay=user_variables.get("exploration_decay"),
-        whether_to_render=user_variables.get("whether_to_render"),
-        memory_limit=user_variables.get("memory_limit"),
-        train_against_weak_n_number_of_times=user_variables.get("train_against_weak_n_number_of_times"),
-        leaky_relu_grad=user_variables.get("leaky_relu_grad")
+    opponents=user_variables.get("opponents", None),
+    discount=user_variables.get("discount", 0.99),  # Example default
+    tau=user_variables.get("tau", 0.005),
+    policy_noise=user_variables.get("policy_noise", 0.2),
+    noise_clip=user_variables.get("noise_clip", 0.5),
+    policy_freq=user_variables.get("policy_freq", 2),
+    hidden_dim_1=user_variables.get("hidden_dim_1", 256),
+    hidden_dim_2=user_variables.get("hidden_dim_2", 256),
+    learning_rate=user_variables.get("learning_rate", 3e-4),
+    weight_decay=user_variables.get("weight_decay", 0),
+    grad_clip=user_variables.get("grad_clip", None),
+    total_episodes=user_variables.get("total_episodes", 1000),
+    number_of_games=user_variables.get("number_of_games", 10),
+    batch_size=user_variables.get("batch_size", 64),
+    episode_length=user_variables.get("episode_length", 500),
+    exploration_noise=user_variables.get("exploration_noise", 0.1),
+    min_exploration_noise=user_variables.get("min_exploration_noise", 0.01),
+    exploration_decay=user_variables.get("exploration_decay", 0.995),
+    whether_to_render=user_variables.get("whether_to_render", False),
+    memory_limit=user_variables.get("memory_limit", 100000),
+    train_against_weak_n_number_of_times=user_variables.get("train_against_weak_n_number_of_times", None),
+    leaky_relu_grad=user_variables.get("leaky_relu_grad", 0.01)
     )
 
-    if user_variables.get("whether_to_train"):
+    if user_variables.get("whether_to_train", True):
         test_object.train()
 
-    if user_variables.get("whether_to_run_best_model"):
-        test_object.run_best_model(number_of_games=user_variables.get("number_of_games"),whether_to_render=user_variables.get("whether_to_render"))
+    if user_variables.get("whether_to_run_best_model", True):
+        test_object.run_best_model(number_of_games=user_variables.get("number_of_games", 100),whether_to_render=user_variables.get("whether_to_render", True))
 
     test_object.env.close()
 
 
 if __name__ == '__main__':
     # all possible changes are editable by updating user_variables
+    # user should be able to comment out any of these variables and it should still work since I made all variables optional
+    # tried my best with adapting my Automation Engineering internship experience here. 
     user_variables = {
         # train and run at the end
         "whether_to_train": True, # Boolean to train 
@@ -364,7 +369,7 @@ if __name__ == '__main__':
         "exploration_decay": 0.999999,
         "train_against_weak_n_number_of_times": 1000,
         # running settings
-        "number_of_games": 200, # Number of games to test an episode's quality or to render - a high number is recommended since it effected my training a lot
+        "number_of_games": 100, # Number of games to test an episode's quality or to render - a high number is recommended since it effected my training a lot
         "opponents": [h_env.BasicOpponent(weak=True), h_env.BasicOpponent(weak=False)], # list of opponents
         # TD3 settings
         "discount": 0.99,
