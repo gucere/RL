@@ -4,10 +4,10 @@ import torch.optim as optim
 import torch.nn.functional
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2, leaky_relu_grad):
+    def __init__(self, state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2, leaky_relu_grad=0.01):
         super(Actor, self).__init__()
         self.max_action = max_action
-
+        self.leaky_relu_grad = leaky_relu_grad
         self.fc1 = nn.Linear(state_dim, hidden_dim_1)
         self.ln1 = nn.LayerNorm(hidden_dim_1)
         self.fc2 = nn.Linear(hidden_dim_1, hidden_dim_2)
@@ -27,14 +27,15 @@ class Actor(nn.Module):
 
     def init_weights(self, m):
         if isinstance(m, nn.Linear):
-            nn.init.xavier_uniform_(m.weight)
+            nn.init.kaiming_uniform_(m.weight, a=self.leaky_relu_grad, nonlinearity='leaky_relu')
             nn.init.zeros_(m.bias)
 
 
 class Critic(nn.Module):
-    def __init__(self, state_dim, action_dim, hidden_dim_1, hidden_dim_2):
+    def __init__(self, state_dim, action_dim, hidden_dim_1, hidden_dim_2, leaky_relu_grad=0.01):
         super(Critic, self).__init__()
 
+        self.leaky_relu_grad = leaky_relu_grad
         self.fc1 = nn.Linear(state_dim + action_dim, hidden_dim_1)
         self.ln1 = nn.LayerNorm(hidden_dim_1)
         self.fc2 = nn.Linear(hidden_dim_1, hidden_dim_2)
@@ -64,13 +65,13 @@ class Critic(nn.Module):
 
     def init_weights(self, m):
         if isinstance(m, nn.Linear):
-            nn.init.xavier_uniform_(m.weight)
+            nn.init.kaiming_uniform_(m.weight, a=self.leaky_relu_grad, nonlinearity='leaky_relu')
             nn.init.zeros_(m.bias)
 
 
 class TD3:
     def __init__(self, state_dim, action_dim, max_action, discount, tau, policy_noise,
-                  noise_clip, policy_freq, hidden_dim_1=2048, hidden_dim_2=2048,
+                  noise_clip, policy_freq, hidden_dim_1=256, hidden_dim_2=256,
                   actor_learning_rate=1e-3, critic_learning_rate=1e-3, weight_decay=1e-4,
                   grad_clip=1.0, leaky_relu_grad=0.01):
 
@@ -78,8 +79,8 @@ class TD3:
         self.actor_target = Actor(state_dim, action_dim, max_action, hidden_dim_1, hidden_dim_2, leaky_relu_grad).to("cuda")
         self.actor_target.load_state_dict(self.actor.state_dict())
 
-        self.critic = Critic(state_dim, action_dim, hidden_dim_1, hidden_dim_2).to("cuda")
-        self.critic_target = Critic(state_dim, action_dim, hidden_dim_1, hidden_dim_2).to("cuda")
+        self.critic = Critic(state_dim, action_dim, hidden_dim_1, hidden_dim_2, leaky_relu_grad).to("cuda")
+        self.critic_target = Critic(state_dim, action_dim, hidden_dim_1, hidden_dim_2, leaky_relu_grad).to("cuda")
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_learning_rate, weight_decay=weight_decay)
